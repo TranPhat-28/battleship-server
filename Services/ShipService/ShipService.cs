@@ -7,44 +7,28 @@ namespace battleship_server.Services.ShipService
 {
     public class ShipService : IShipService
     {
-        private static List<Ship> demoShipList = new List<Ship> {
-            new Ship {
-                ID = 0,
-                Name = "Basic Ship A",
-                Size = ShipSize.S,
-                Rarity = ShipRarity.Common,
-            },
-            new Ship {
-                ID = 1,
-                Name = "Basic Ship B",
-                Size = ShipSize.M,
-                Rarity = ShipRarity.Common,
-            },
-            new Ship {
-                ID = 2,
-                Name = "Basic Ship C",
-                Size = ShipSize.L,
-                Rarity = ShipRarity.Common,
-            },
-            new Ship {
-                ID = 3,
-                Name = "Basic Ship D",
-                Size = ShipSize.XL,
-                Rarity = ShipRarity.Common,
-            },
-        };
         private readonly IMapper _mapper;
+        private readonly DataContext _dataContext;
 
-        public ShipService(IMapper mapper)
+        public ShipService(IMapper mapper, DataContext dataContext)
         {
+            _dataContext = dataContext;
             _mapper = mapper;
         }
 
         public async Task<ServiceResponse<List<GetShipDto>>> AddShip(AddShipDto newShip)
         {
+            // New ServiceResponse
             var serviceResponse = new ServiceResponse<List<GetShipDto>>();
-            demoShipList.Add(_mapper.Map<Ship>(newShip));
-            serviceResponse.Data = demoShipList.Select(ship => _mapper.Map<GetShipDto>(ship)).ToList();
+            // Map the newShip
+            var ship = _mapper.Map<Ship>(newShip);
+            // Add the newShip to the context
+            _dataContext.Ships.Add(ship);
+            // Async save changes to the db
+            await _dataContext.SaveChangesAsync();
+
+            // Retrieve all the Ships to return
+            serviceResponse.Data = await _dataContext.Ships.Select(ship => _mapper.Map<GetShipDto>(ship)).ToListAsync();
             return serviceResponse;
         }
 
@@ -55,15 +39,19 @@ namespace battleship_server.Services.ShipService
 
             try
             {
-                var ship = demoShipList.FirstOrDefault(ship => ship.ID == id);
+                var ship = await _dataContext.Ships.FirstOrDefaultAsync(ship => ship.ID == id);
                 if (ship is null)
                 {
                     throw new Exception($"Cannot find ship with ID {id}");
                 }
 
-                demoShipList.Remove(ship);
+                // Remove
+                _dataContext.Ships.Remove(ship);
 
-                serviceResponse.Data = demoShipList.Select(item => _mapper.Map<GetShipDto>(item)).ToList();
+                // Save changes
+                await _dataContext.SaveChangesAsync();
+
+                serviceResponse.Data = await _dataContext.Ships.Select(item => _mapper.Map<GetShipDto>(item)).ToListAsync();
             }
             catch (Exception ex)
             {
@@ -76,8 +64,13 @@ namespace battleship_server.Services.ShipService
 
         public async Task<ServiceResponse<List<GetShipDto>>> GetAllShip()
         {
+            // New serviceResponse object
             var serviceResponse = new ServiceResponse<List<GetShipDto>>();
-            serviceResponse.Data = demoShipList.Select(ship => _mapper.Map<GetShipDto>(ship)).ToList();
+            
+            // Query from DB
+            var dbShip = await _dataContext.Ships.ToListAsync();
+
+            serviceResponse.Data = dbShip.Select(ship => _mapper.Map<GetShipDto>(ship)).ToList();
             return serviceResponse;
         }
 
@@ -86,9 +79,11 @@ namespace battleship_server.Services.ShipService
             // New ServiceResponse
             var serviceResponse = new ServiceResponse<GetShipDto>();
 
+            // Query from DB
+            var dbShip = await _dataContext.Ships.FirstOrDefaultAsync(ship => ship.ID == id);
+
             // Using AutoMapper to map the ship to GetShipDtos
-            var ship = demoShipList.FirstOrDefault(ship => ship.ID == id);
-            serviceResponse.Data = _mapper.Map<GetShipDto>(ship);
+            serviceResponse.Data = _mapper.Map<GetShipDto>(dbShip);
             return serviceResponse;
         }
 
@@ -99,7 +94,8 @@ namespace battleship_server.Services.ShipService
 
             try
             {
-                var ship = demoShipList.FirstOrDefault(ship => ship.ID == newShip.ID);
+                // Look for the ship with the id
+                var ship = await _dataContext.Ships.FirstOrDefaultAsync(ship => ship.ID == newShip.ID);
                 if (ship is null)
                 {
                     throw new Exception($"Cannot find ship with ID {newShip.ID}");
@@ -109,6 +105,8 @@ namespace battleship_server.Services.ShipService
                 ship.Size = newShip.Size;
                 ship.Rarity = newShip.Rarity;
 
+                // Save the changes to the DB
+                await _dataContext.SaveChangesAsync();
                 serviceResponse.Data = _mapper.Map<GetShipDto>(ship);
             }
             catch (Exception ex)
