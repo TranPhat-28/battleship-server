@@ -20,6 +20,7 @@ builder.Services.AddDbContext<DataContext>(options
 
 // Service DI
 builder.Services.AddScoped<IShipService, ShipService>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 // Register the Auto Mapper
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
