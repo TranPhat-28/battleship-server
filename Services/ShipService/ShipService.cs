@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace battleship_server.Services.ShipService
@@ -9,10 +10,12 @@ namespace battleship_server.Services.ShipService
     {
         private readonly IMapper _mapper;
         private readonly DataContext _dataContext;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ShipService(IMapper mapper, DataContext dataContext)
+        public ShipService(IMapper mapper, DataContext dataContext, IHttpContextAccessor httpContextAccessor)
         {
             _dataContext = dataContext;
+            _httpContextAccessor = httpContextAccessor;
             _mapper = mapper;
         }
 
@@ -116,6 +119,13 @@ namespace battleship_server.Services.ShipService
             }
 
             return serviceResponse;
+        }
+
+        // Method to get the userId
+        private int GetUserId()
+        {
+            int userId = int.Parse(_httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            return userId;
         }
     }
 }
